@@ -19,11 +19,11 @@ jobs:
         with:
           file: deploy/doc.Dockerfile
           push: true
-          tags: sopdocs/doc:latest
+          tags: platformdkbcf/sopdocs-doc:latest
       -
         name: Build and push gitter
         uses: docker/build-push-action@v3
         with:
           file: deploy/gitter.Dockerfile
           push: true
-          tags: sopdocs/gitter:latest
+          tags: platformdkbcf/sopdocs-gitter:latest
