@@ -1,0 +1,162 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "sopdocs.fullname" . }}
+  labels:
+    {{- include "sopdocs.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "sopdocs.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      {{- with .Values.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      labels:
+        {{- include "sopdocs.selectorLabels" . | nindent 8 }}
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      serviceAccountName: {{ include "sopdocs.serviceAccountName" . }}
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      initContainers:
+        - name: initschema
+          image: governmentpaas/psql:latest
+          env:
+            - name: PG_USER
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "sopdocs.fullname" . }}-config
+                  key: PG_USER
+            - name: PG_PASS
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "sopdocs.fullname" . }}-config
+                  key: PG_PASS
+          command: 
+            - sh
+            - "-c"
+            - psql postgresql://${PG_USER}:${PG_PASS}@{{ .Values.env.PG_HOST }}:{{ .Values.env.PG_PORT }} < schema/crds_up.sql
+          volumeMounts:
+            - name: schema-volume
+              mountPath: /schema
+      containers:
+        - name: {{ .Chart.Name }}-doc
+          securityContext:
+            {{- toYaml .Values.securityContext | nindent 12 }}
+          image: "{{ .Values.doc.image.repository }}:{{ .Values.doc.image.tag | default .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.doc.image.pullPolicy }}
+          env:
+            - name: PG_USER
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "sopdocs.fullname" . }}-config
+                  key: PG_USER
+            - name: PG_PASS
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "sopdocs.fullname" . }}-config
+                  key: PG_PASS
+            - name: TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "sopdocs.fullname" . }}-config
+                  key: TOKEN
+            - name: PG_HOST
+              value: {{ .Values.env.PG_HOST | quote }}
+            - name: PG_PORT
+              value: {{ .Values.env.PG_PORT | quote }}
+            - name: PG_DB
+              value: {{ .Values.env.PG_DB | quote }}
+            - name: REPO
+              value: {{ .Values.env.REPO | quote }}
+            - name: IS_DEV
+              value: {{ .Values.env.IS_DEV | quote }}
+            - name: CONFIG_FILE
+              value: /app/doc-config.yaml
+          volumeMounts:
+            - name: config-volume
+              mountPath: /app
+          ports:
+            - name: http
+              containerPort: 5050
+              protocol: TCP
+          livenessProbe:
+            httpGet:
+              path: /
+              port: http
+          readinessProbe:
+            httpGet:
+              path: /
+              port: http
+          resources:
+            {{- toYaml .Values.doc.resources | nindent 12 }}
+        - name: {{ .Chart.Name }}-gitter
+          securityContext:
+            {{- toYaml .Values.securityContext | nindent 12 }}
+          image: "{{ .Values.gitter.image.repository }}:{{ .Values.gitter.image.tag | default .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.gitter.image.pullPolicy }}
+          env:
+            - name: PG_USER
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "sopdocs.fullname" . }}-config
+                  key: PG_USER
+            - name: PG_PASS
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "sopdocs.fullname" . }}-config
+                  key: PG_PASS
+            - name: TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "sopdocs.fullname" . }}-config
+                  key: TOKEN
+            - name: PG_HOST
+              value: {{ .Values.env.PG_HOST | quote }}
+            - name: PG_PORT
+              value: {{ .Values.env.PG_PORT | quote }}
+            - name: PG_DB
+              value: {{ .Values.env.PG_DB | quote }}
+            - name: REPO
+              value: {{ .Values.env.REPO | quote }}
+            - name: IS_DEV
+              value: {{ .Values.env.IS_DEV | quote }}
+            - name: CONFIG_FILE
+              value: /app/doc-config.yaml
+          volumeMounts:
+            - name: config-volume
+              mountPath: /app
+          resources:
+            {{- toYaml .Values.gitter.resources | nindent 12 }}
+      volumes:
+        - name: config-volume
+          configMap:
+            name: {{ include "sopdocs.fullname" . }}-configfile
+            items:
+              - key: "doc-config.yaml"
+                path: "doc-config.yaml"
+        - name: schema-volume
+          configMap:
+            name: {{ include "sopdocs.fullname" . }}-schema
+            items:
+              - key: "crds_up.sql"
+                path: "crds_up.sql"
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}

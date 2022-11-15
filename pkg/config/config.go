@@ -25,7 +25,7 @@ type IgnoreConfig struct {
 func LoadConfigWithDefaults(filepath string) (*DocConfig, error) {
 	scanRegex := "^.*.\\.yaml"
 	templateDir := "template"
-	exampleProject := "github.com/crossplane/crossplane@v0.10.0"
+	exampleProject := "crossplane/crossplane@v0.10.0"
 
 	defaultConfig := DocConfig{
 		Scan: &ScanConfig{
