@@ -103,11 +103,17 @@ tolerations: []
 
 affinity: {}
 
+initDB:
+  enabled: true
+  initOnExistingDB: ""
+  resources: {}
+
 
 config: |
- scan:
-  regex: ^.*.\.yaml
-  ignore:
-    regex: .*composite.*
-
+  scan:
+    regex: ^.*.\.yaml
+    ignore:
+      regexes:
+        - *composite.*
   exampleProject: crossplane/crossplane@v0.10.0
+  repositoryConfigFile: sopdocs-config.yaml

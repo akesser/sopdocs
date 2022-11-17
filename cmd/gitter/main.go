@@ -228,18 +228,58 @@ func getCRDsFromTag(dir string, tag string, hash *plumbing.Hash, w *git.Worktree
 	})
 	repoCRDs := map[string]models.RepoCRD{}
 	files := getYAMLs(g, dir)
-	matchAgainstRegex := false
 
-	var fileReg *regexp.Regexp
-	if docGitter.config != nil && docGitter.config.Scan != nil && docGitter.config.Scan.Ignore != nil && docGitter.config.Scan.Ignore.Regex != nil {
-		matchAgainstRegex = true
-		fileReg = regexp.MustCompile(*docGitter.config.Scan.Ignore.Regex)
+	ignoreRegexList := []*regexp.Regexp{}
+	ignoreFilesList := []*string{}
+	ignoreGroupsList := []*string{}
+	ignoreVersionsList := []*string{}
+
+	if docGitter.config != nil && docGitter.config.Scan != nil && docGitter.config.Scan.Ignore != nil {
+		if docGitter.config.Scan.Ignore.Regexes != nil {
+			regesList, err := compileToRegex(docGitter.config.Scan.Ignore.Regexes)
+			if err != nil {
+				panic(err)
+			}
+			ignoreRegexList = append(ignoreRegexList, regesList...)
+		}
+		if docGitter.config.Scan.Ignore.Files != nil {
+			ignoreFilesList = append(ignoreFilesList, docGitter.config.Scan.Ignore.Files...)
+		}
+		if docGitter.config.Scan.Ignore.Groups != nil {
+			ignoreGroupsList = append(ignoreGroupsList, docGitter.config.Scan.Ignore.Groups...)
+		}
+		if docGitter.config.Scan.Ignore.Versions != nil {
+			ignoreVersionsList = append(ignoreVersionsList, docGitter.config.Scan.Ignore.Versions...)
+		}
+	}
+
+	ignorefile, err := getRepoIgnoreFile(dir)
+
+	if err == nil {
+
+		if ignorefile.Regexes != nil {
+			regesList, err := compileToRegex(ignorefile.Regexes)
+			if err != nil {
+				panic(err)
+			}
+			ignoreRegexList = append(ignoreRegexList, regesList...)
+		}
+		if ignorefile.Files != nil {
+			ignoreFilesList = append(ignoreFilesList, ignorefile.Files...)
+		}
+		if ignorefile.Groups != nil {
+			ignoreGroupsList = append(ignoreGroupsList, ignorefile.Groups...)
+		}
+		if ignorefile.Versions != nil {
+			ignoreVersionsList = append(ignoreVersionsList, ignorefile.Versions...)
+		}
 	}
 	for file, yamls := range files {
-		if matchAgainstRegex {
-			if fileReg.MatchString(file) {
-				continue
-			}
+		if isInList(file, ignoreFilesList) {
+			continue
+		}
+		if isMatchInList(file, ignoreRegexList) {
+			continue
 		}
 		for _, y := range yamls {
 			crder, err := crd.NewCRDer(y, crd.StripLabels(), crd.StripAnnotations(), crd.StripConversion())
@@ -248,6 +288,14 @@ func getCRDsFromTag(dir string, tag string, hash *plumbing.Hash, w *git.Worktree
 			}
 			cbytes, err := json.Marshal(crder.CRD)
 			if err != nil {
+				continue
+			}
+
+			if isInList(crder.GVK.Group, ignoreGroupsList) {
+				continue
+			}
+
+			if isInList(crder.GVK.Version, ignoreVersionsList) {
 				continue
 			}
 			repoCRDs[crd.PrettyGVK(crder.GVK)] = models.RepoCRD{
@@ -261,6 +309,62 @@ func getCRDsFromTag(dir string, tag string, hash *plumbing.Hash, w *git.Worktree
 		}
 	}
 	return repoCRDs, nil
+}
+
+func compileToRegex(list []*string) (regexList []*regexp.Regexp, err error) {
+
+	for _, reg := range list {
+		regex, err := regexp.Compile(*reg)
+		if err != nil {
+			return nil, err
+		}
+		regexList = append(regexList, regex)
+
+	}
+
+	return regexList, nil
+}
+
+func isInList(a string, list []*string) bool {
+	if len(list) > 0 {
+		for _, entry := range list {
+			if a == *entry {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+func isMatchInList(a string, list []*regexp.Regexp) bool {
+	if len(list) > 0 {
+		for _, entry := range list {
+			if entry.MatchString(a) {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+func getRepoIgnoreFile(dir string) (*config.IgnoreConfig, error) {
+	filename := docGitter.config.RepositoryConfigFile
+	content, err := os.ReadFile(dir + "/" + *filename)
+
+	if err == nil {
+		var repoConfig config.RepoConfig
+
+		err = yaml.Unmarshal(content, &repoConfig)
+
+		if err != nil {
+			return nil, err
+		}
+		if repoConfig.Ignore != nil {
+			return repoConfig.Ignore, nil
+		}
+	}
+	return nil, errors.New("found no ignorefile")
+
 }
 
 func getYAMLs(greps []git.GrepResult, dir string) map[string][][]byte {
