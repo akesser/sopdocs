@@ -227,11 +227,11 @@ func start() {
 	staticHandler := http.StripPrefix("/static/", http.FileServer(http.Dir("./static/")))
 	r.HandleFunc("/", home)
 	r.PathPrefix("/static/").Handler(staticHandler)
-	r.HandleFunc(fmt.Sprintf("/%s/{org}/{repo}@{tag}", repoBase), org)
-	r.HandleFunc(fmt.Sprintf("/%s/{org}/{repo}", repoBase), org)
-	r.HandleFunc(fmt.Sprintf("/raw/%s/{org}/{repo}@{tag}", repoBase), raw)
-	r.HandleFunc(fmt.Sprintf("/raw/%s/{org}/{repo}", repoBase), raw)
-	r.PathPrefix("/").HandlerFunc(doc)
+	r.HandleFunc(fmt.Sprintf("/%s/{org}/{repo:.*}@{tag}/{group}/{kind}/{version}", repoBase), doc)
+	r.HandleFunc(fmt.Sprintf("/%s/{org}/{repo:.*}@{tag}", repoBase), org)
+	r.HandleFunc(fmt.Sprintf("/%s/{org}/{repo:.*}", repoBase), org)
+	r.HandleFunc(fmt.Sprintf("/raw/%s/{org}/{repo:.*}@{tag}", repoBase), raw)
+	r.HandleFunc(fmt.Sprintf("/raw/%s/{org}/{repo:.*}", repoBase), raw)
 	log.Fatal(http.ListenAndServe(":5050", r))
 }
 
@@ -419,12 +419,15 @@ func doc(w http.ResponseWriter, r *http.Request) {
 	var schema *apiextensions.CustomResourceValidation
 	crd := &apiextensions.CustomResourceDefinition{}
 	log.Printf("Request Received: %s\n", r.URL.Path)
-	org, repo, group, kind, version, tag, err := parseGHURL(r.URL.Path)
-	if err != nil {
-		log.Printf("failed to parse Github path: %v", err)
-		fmt.Fprint(w, "Invalid URL.")
-		return
-	}
+
+	parameters := mux.Vars(r)
+	org := parameters["org"]
+	repo := parameters["repo"]
+	tag := parameters["tag"]
+	kind := parameters["kind"]
+	group := parameters["group"]
+	version := parameters["version"]
+
 	pageData := getPageData(r, fmt.Sprintf("%s.%s/%s", kind, group, version), false)
 	fullRepo := fmt.Sprintf("%s/%s/%s", repoBase, org, repo)
 	var c pgx.Row

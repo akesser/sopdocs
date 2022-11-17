@@ -7,32 +7,41 @@ import (
 )
 
 type DocConfig struct {
-	Scan           *ScanConfig `json:"scan,omitempty"`
-	TemplateFolder *string     `json:"templateFolder,omitempty"`
-	ExampleProject *string     `json:"exampleProject,omitempty"`
+	Scan                 *ScanConfig `yaml:"scan,omitempty"`
+	TemplateFolder       *string     `yaml:"templateFolder,omitempty"`
+	ExampleProject       *string     `yaml:"exampleProject,omitempty"`
+	RepositoryConfigFile *string     `yaml:"repositoryConfigFile,omitempty"`
 }
 
 type ScanConfig struct {
-	Regex  *string       `json:"regex,omitempty"`
-	Ignore *IgnoreConfig `json:"ignore,omitempty"`
+	Regex  *string       `yaml:"regex,omitempty"`
+	Ignore *IgnoreConfig `yaml:"ignore,omitempty"`
 }
 
 type IgnoreConfig struct {
-	Regex *string   `json:"regex,omitempty"`
-	List  []*string `json:"list,omitempty"`
+	Regexes  []*string `yaml:"regexes,omitempty"`
+	Files    []*string `yaml:"files,omitempty"`
+	Groups   []*string `yaml:"groups,omitempty"`
+	Versions []*string `yaml:"versions,omitempty"`
+}
+
+type RepoConfig struct {
+	Ignore *IgnoreConfig `yaml:"ignore,omitempty"`
 }
 
 func LoadConfigWithDefaults(filepath string) (*DocConfig, error) {
 	scanRegex := "^.*.\\.yaml"
 	templateDir := "template"
 	exampleProject := "crossplane/crossplane@v0.10.0"
+	repositoryIgnoreFile := "crdsdev-config.yaml"
 
 	defaultConfig := DocConfig{
 		Scan: &ScanConfig{
 			Regex: &scanRegex,
 		},
-		TemplateFolder: &templateDir,
-		ExampleProject: &exampleProject,
+		TemplateFolder:       &templateDir,
+		ExampleProject:       &exampleProject,
+		RepositoryConfigFile: &repositoryIgnoreFile,
 	}
 
 	return LoadConfig(defaultConfig, filepath)
@@ -69,6 +78,11 @@ func (in *DocConfig) DeepCopyInto(out *DocConfig) {
 	}
 	if in.ExampleProject != nil {
 		in, out := &in.ExampleProject, &out.ExampleProject
+		*out = new(string)
+		**out = **in
+	}
+	if in.RepositoryConfigFile != nil {
+		in, out := &in.RepositoryConfigFile, &out.RepositoryConfigFile
 		*out = new(string)
 		**out = **in
 	}
@@ -111,14 +125,42 @@ func (in *ScanConfig) DeepCopy() *ScanConfig {
 
 func (in *IgnoreConfig) DeepCopyInto(out *IgnoreConfig) {
 	*out = *in
-	if in.Regex != nil {
-		in, out := &in.Regex, &out.Regex
-		*out = new(string)
-		**out = **in
-	}
 
-	if in.List != nil {
-		in, out := &in.List, &out.List
+	if in.Regexes != nil {
+		in, out := &in.Regexes, &out.Regexes
+		*out = make([]*string, len(*in))
+		for i := range *in {
+			if (*in)[i] != nil {
+				in, out := &(*in)[i], &(*out)[i]
+				*out = new(string)
+				**out = **in
+			}
+		}
+	}
+	if in.Files != nil {
+		in, out := &in.Files, &out.Files
+		*out = make([]*string, len(*in))
+		for i := range *in {
+			if (*in)[i] != nil {
+				in, out := &(*in)[i], &(*out)[i]
+				*out = new(string)
+				**out = **in
+			}
+		}
+	}
+	if in.Groups != nil {
+		in, out := &in.Groups, &out.Groups
+		*out = make([]*string, len(*in))
+		for i := range *in {
+			if (*in)[i] != nil {
+				in, out := &(*in)[i], &(*out)[i]
+				*out = new(string)
+				**out = **in
+			}
+		}
+	}
+	if in.Versions != nil {
+		in, out := &in.Versions, &out.Versions
 		*out = make([]*string, len(*in))
 		for i := range *in {
 			if (*in)[i] != nil {

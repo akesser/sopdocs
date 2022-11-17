@@ -1,6 +1,9 @@
 scan:
   regex: ^.*.\.yaml
   ignore:
-    regex: .*composite.*
+    regexes:
+      - .*composite.*
 
 exampleProject: crossplane/crossplane@v0.10.0
+
+repositoryConfigFile: sopdocs-config.yaml

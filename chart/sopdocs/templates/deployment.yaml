@@ -25,6 +25,7 @@ spec:
       serviceAccountName: {{ include "sopdocs.serviceAccountName" . }}
       securityContext:
         {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      {{- if .Values.initDB.enabled }}
       initContainers:
         - name: initschema
           image: governmentpaas/psql:latest
@@ -42,10 +43,17 @@ spec:
           command: 
             - sh
             - "-c"
+            {{- if .Values.initDB.initOnExistingDB}}
+            - psql postgresql://${PG_USER}:${PG_PASS}@{{ .Values.env.PG_HOST }}:{{ .Values.env.PG_PORT }}/{{.Values.initDB.initOnExistingDB }} < schema/crds_up.sql
+            {{- else }}
             - psql postgresql://${PG_USER}:${PG_PASS}@{{ .Values.env.PG_HOST }}:{{ .Values.env.PG_PORT }} < schema/crds_up.sql
+            {{- end }}
           volumeMounts:
             - name: schema-volume
               mountPath: /schema
+          resources:
+            {{- toYaml .Values.initDB.resources | nindent 12 }}
+      {{- end }}
       containers:
         - name: {{ .Chart.Name }}-doc
           securityContext:
