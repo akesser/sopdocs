@@ -37,8 +37,8 @@ import (
 	"github.com/crdsdev/doc/pkg/models"
 	"github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/plumbing"
-	"github.com/jackc/pgx/v4"
-	"github.com/jackc/pgx/v4/pgxpool"
+	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/pkg/errors"
 	"gopkg.in/square/go-jose.v2/json"
 	yaml "gopkg.in/yaml.v3"
@@ -55,7 +55,10 @@ const (
 )
 
 var repoBase = "github.com"
-var token = ""
+
+// var token = ""
+
+var tokens = map[string]string{}
 
 type DocGitter struct {
 	config *config.DocConfig
@@ -70,22 +73,24 @@ func main() {
 	if path := os.Getenv("CONFIG_FILE"); path != "" {
 		configPath = path
 	}
-	config, err := config.LoadConfigWithDefaults(configPath)
-	docGitter.config = config
-	token = os.Getenv("TOKEN")
+	docconfig, err := config.LoadConfigWithDefaults(configPath)
+	docGitter.config = docconfig
+
+	tokens = config.LoadTokensFromEnv(docconfig.TokenVariables)
 	repoBase = os.Getenv("REPO")
 	dsn := fmt.Sprintf("postgresql://%s:%s@%s:%s/%s", os.Getenv(userEnv), os.Getenv(passwordEnv), os.Getenv(hostEnv), os.Getenv(portEnv), os.Getenv(dbEnv))
 	conn, err := pgxpool.ParseConfig(dsn)
 	if err != nil {
 		panic(err)
 	}
-	pool, err := pgxpool.ConnectConfig(context.Background(), conn)
+	pool, err := pgxpool.NewWithConfig(context.Background(), conn)
 	if err != nil {
 		panic(err)
 	}
 	gitter := &Gitter{
 		conn: pool,
 	}
+	// startCron()
 	rpc.Register(gitter)
 	rpc.HandleHTTP()
 	l, e := net.Listen("tcp", ":1234")
@@ -116,8 +121,9 @@ func (g *Gitter) Index(gRepo models.GitterRepo, reply *string) error {
 		return err
 	}
 	defer os.RemoveAll(dir)
-	fullRepo := fmt.Sprintf("%s/%s/%s", repoBase, strings.ToLower(gRepo.Org), strings.ToLower(gRepo.Repo))
+	fullRepo := fmt.Sprintf("%s/%s/%s", strings.ToLower(gRepo.Org), strings.ToLower(gRepo.Base), strings.ToLower(gRepo.Repo))
 	repoURL := fmt.Sprintf("https://%s", fullRepo)
+	token := tokens[strings.ToLower(gRepo.Org)]
 	if token != "" {
 		repoURL = fmt.Sprintf("https://oauth2:%s@%s", token, fullRepo)
 	}
@@ -437,3 +443,91 @@ func buildInsert(query string, argsPerInsert, numInsert int) string {
 	}
 	return query
 }
+
+// var db *pgxpool.Pool
+
+// func getRepoFromString(input string) *models.GitterRepo {
+
+// 	parts := strings.Split(input, "/")
+
+// 	if len(parts) > 2 {
+// 		org := parts[0]
+// 		base := strings.Join(parts[1:len(parts)-1], "/")
+// 		repo := parts[len(parts)-1]
+
+// 		gitterRepo := models.GitterRepo{
+// 			Tag:  "",
+// 			Org:  org,
+// 			Base: base, // TODO: Update the logic of org and base
+// 			Repo: repo,
+// 		}
+// 		return &gitterRepo
+// 	}
+// 	return nil
+// }
+
+// func getStringFromRepo(input models.GitterRepo) string {
+// 	result := input.Org + "/" + input.Base + "/" + input.Repo
+// 	return result
+// }
+
+// func updateProject() {
+
+// 	limit := 2
+// 	// interval := 1
+// 	rows, err := db.Query(context.Background(), "SELECT repo FROM (SELECT DISTINCT ON (repo) repo FROM tags  WHERE repo NOT IN (SELECT repo FROM lastupdates WHERE lastupdate > (NOW() - INTERVAL '1' HOUR))) AS u ORDER BY RANDOM() LIMIT $1", limit)
+// 	if err != nil {
+// 		log.Fatal(err)
+// 	}
+
+// 	repos := []*models.GitterRepo{}
+
+// 	for rows.Next() {
+// 		values, err := rows.Values()
+// 		if err != nil {
+// 			log.Fatal("error while iterating dataset")
+// 		}
+
+// 		// convert DB types to Go types
+// 		repo := values[0].(string)
+// 		gitterRepo := getRepoFromString(repo)
+// 		if gitterRepo != nil {
+// 			repos = append(repos, gitterRepo)
+// 		}
+
+// 	}
+
+// 	if len(repos) > 0 {
+
+// 		reply := ""
+// 		if err == nil {
+// 			for i := range repos {
+// 				repo := *repos[i]
+// 				err = gitter.Index(repo, &reply)
+// 				if err != nil {
+// 					log.Fatal("Error while updating entry", err)
+// 				} else {
+// 					updateEntry(repo)
+// 				}
+// 			}
+// 		}
+// 	}
+// }
+
+// func updateEntry(repo models.GitterRepo) {
+
+// 	repoString := getStringFromRepo(repo)
+// 	result, err := db.Query(context.Background(), "INSERT INTO lastupdates (repo, lastupdate) VALUES ($1, NOW()) ON CONFLICT (repo) DO UPDATE SET lastupdate= NOW()", repoString)
+// 	if err != nil {
+
+// 	}
+// 	if result != nil {
+
+// 	}
+// }
+
+// func startCron() {
+// 	c := cron.New()
+// 	c.AddFunc("@every 1m", func() { updateProject() })
+// 	c.Start()
+// }
