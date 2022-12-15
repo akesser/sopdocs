@@ -6,4 +6,7 @@ scan:
 
 exampleProject: crossplane/crossplane@v0.10.0
 
+tokenVariables:
+  "gitlab.intern": TOKEN 
+
 repositoryConfigFile: sopdocs-config.yaml

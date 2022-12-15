@@ -31,4 +31,5 @@ type GitterRepo struct {
 	Org  string
 	Repo string
 	Tag  string
+	Base string
 }
