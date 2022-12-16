@@ -237,6 +237,7 @@ func start() {
 	log.Println("Starting Doc server...")
 	r := mux.NewRouter().StrictSlash(true)
 
+	r.Path("/health").Methods(http.MethodGet).HandlerFunc(health)
 	r.Path("/api/projects").Methods(http.MethodGet).HandlerFunc(apiTags)
 	r.Path("/api/projects").Methods(http.MethodPost, http.MethodOptions).HandlerFunc(indexProject)
 	r.Path("/api/projects/search").Methods(http.MethodGet, http.MethodOptions).HandlerFunc(searchProject)
@@ -251,6 +252,9 @@ func start() {
 	r.Use(mux.CORSMethodMiddleware(r))
 
 	log.Fatal(http.ListenAndServe(":5050", r))
+}
+func health(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusOK)
 }
 
 // func home(w http.ResponseWriter, r *http.Request) {

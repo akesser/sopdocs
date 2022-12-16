@@ -7,7 +7,7 @@ replicaCount: 1
 doc:
   image:
     repository: platformdkbcf/sopdocs-doc
-    pullPolicy: IfNotPresent
+    pullPolicy: Always
     # Overrides the image tag whose default is the chart appVersion.
     tag: latest
   resources: {}
@@ -25,7 +25,7 @@ doc:
 gitter:
   image:
     repository: platformdkbcf/sopdocs-gitter
-    pullPolicy: IfNotPresent
+    pullPolicy: Always
     # Overrides the image tag whose default is the chart appVersion.
     tag: latest
   resources: {}
