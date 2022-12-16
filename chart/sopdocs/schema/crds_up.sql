@@ -23,3 +23,25 @@ CREATE TABLE IF NOT EXISTS crds (
     data JSONB NOT NULL,
     PRIMARY KEY(tag_id, "group", version, kind)
 );
+
+CREATE TABLE IF NOT EXISTS lastupdates (
+    repo VARCHAR(255) NOT NULL,
+    lastupdate TIMESTAMP NOT NULL,
+    UNIQUE(repo)
+);
+
+CREATE TABLE IF NOT EXISTS shortcuts (
+    shortcut CHAR(20) NOT NULL,
+    org VARCHAR(255) NOT NULL,
+    base VARCHAR(255) NOT NULL,
+    repo VARCHAR(255) NOT NULL,
+    tag VARCHAR(255) NOT NULL,
+    "group" VARCHAR(255) NOT NULL,
+    kind VARCHAR(255) NOT NULL,
+    "version" VARCHAR(255) NOT NULL,
+    yaml_data JSONB NOT NULL,
+    valid_until TIMESTAMP NOT NULL,
+    "hash" CHAR(32) NOT NULL,
+    UNIQUE(shortcut, "hash")
+)
+
