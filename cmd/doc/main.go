@@ -974,12 +974,12 @@ func updateProject() {
 				repo := *repos[i]
 				client, err := rpc.DialHTTP("tcp", "127.0.0.1:1234")
 				if err != nil {
-					log.Fatal("dialing:", err)
+					log.Println("dialing:", err)
 				}
 				err = client.Call("Gitter.Index", repo, &reply)
 
 				if err != nil {
-					log.Fatal("Error while updating entry", err)
+					log.Println("Error while updating entry ", err)
 				} else {
 					updateEntry(repo)
 				}
